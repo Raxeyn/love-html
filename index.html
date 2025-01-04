@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -70,12 +70,7 @@
 var offsetX = $("#loveHeart").width() / 2;
 var offsetY = $("#loveHeart").height() / 2 - 55;
 // Belirtilen tarihi oluştur
-var together = new Date();
-together.setFullYear(2025, 1, 4);
-together.setHours(14);
-together.setMinutes(49);
-together.setSeconds(0);
-together.setMilliseconds(0);
+var together = new Date(2025, 0, 4, 14, 49, 0, 0); // 0. ay, yani Ocak  ayıdır.
 
 // Şu anki tarihi al
 var now = new Date();
@@ -88,6 +83,11 @@ var seconds = Math.floor(timeDifference / 1000);
 var minutes = Math.floor(seconds / 60);
 var hours = Math.floor(minutes / 60);
 var days = Math.floor(hours / 24);
+
+// Kalan saat, dakika ve saniyeyi hesapla
+var remainingHours = hours % 24;
+var remainingMinutes = minutes % 60;
+var remainingSeconds = seconds % 60;
 
 if (!document.createElement('canvas').getContext) {
 	var msg = document.createElement("div");
