@@ -1,4 +1,4 @@
-﻿	    function Vector(x, y) {
+	    function Vector(x, y) {
 	        this.x = x;
 	        this.y = y;
 	    };
@@ -70,13 +70,14 @@
 	        }
 	    }
 
-	    function Bloom(p, r, c, pc, garden) {
+	    function Bloom(p, r, c, pc, garden, type) {
 	        this.p = p;
 	        this.r = r;
 	        this.c = c;
 	        this.pc = pc;
-	        this.petals = [];
 	        this.garden = garden;
+	        this.type = type || 'daisy';
+	        this.petals = [];
 	        this.init();
 	        this.garden.addBloom(this);
 	    }
@@ -90,16 +91,140 @@
 	                p.render();
 	                isfinished *= p.isfinished;
 	            }
+	            
+	            // Determine current progress to grow the center elements dynamically
+	            var currentR = 0;
+	            if (this.petals.length > 0) {
+	                for (var i = 0; i < this.petals.length; i++) {
+	                    currentR += this.petals[i].r;
+	                }
+	                currentR /= this.petals.length;
+	            }
+	            
+	            if (this.type === 'daisy') {
+	                this.drawDaisyCenter(currentR);
+	            } else if (this.type === 'lily') {
+	                this.drawLilyCenter(currentR);
+	            }
+	            
 	            this.garden.ctx.restore();
 	            if (isfinished == true) {
 	                this.garden.removeBloom(this);
 	            }
 	        },
+	        drawDaisyCenter: function (currentR) {
+	            var ctx = this.garden.ctx;
+	            var centerR = currentR * 0.20; // Reduced ratio so white petals are more prominent
+	            if (centerR < 0.6) return;
+	            
+	            ctx.save();
+	            ctx.globalCompositeOperation = 'source-over';
+	            
+	            // Soft shadow under the center disc for depth (only for larger centers)
+	            if (centerR >= 3.5) {
+	                ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+	                ctx.shadowBlur = 2;
+	            }
+	            
+	            // Draw a vibrant solid golden yellow center
+	            ctx.beginPath();
+	            ctx.arc(0, 0, centerR, 0, Math.PI * 2);
+	            ctx.fillStyle = '#ffcc00';
+	            ctx.fill();
+	            
+	            // Reset shadow
+	            ctx.shadowBlur = 0;
+	            
+	            // Inner orange core/depth (only if center is large enough)
+	            if (centerR >= 2.5) {
+	                ctx.beginPath();
+	                ctx.arc(0, 0, centerR * 0.55, 0, Math.PI * 2);
+	                ctx.fillStyle = '#ff9900';
+	                ctx.fill();
+	            }
+	            
+	            // Small texture dots for the daisy disc florets (only if center is large enough)
+	            if (centerR >= 4.5) {
+	                ctx.fillStyle = '#b75300';
+	                for (var i = 0; i < 6; i++) {
+	                    var angle = (i * Math.PI) / 3;
+	                    var dist = centerR * 0.4;
+	                    ctx.beginPath();
+	                    ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, centerR * 0.08, 0, Math.PI * 2);
+	                    ctx.fill();
+	                }
+	            }
+	            
+	            ctx.restore();
+	        },
+	        drawLilyCenter: function (currentR) {
+	            var ctx = this.garden.ctx;
+	            var stamenLen = currentR * 0.48;
+	            if (stamenLen < 1.5) return;
+	            
+	            ctx.save();
+	            ctx.globalCompositeOperation = 'source-over';
+	            
+	            var numStamens = 5; // Reduced to 5 for less clutter on small lilies
+	            var startAngle = this.petals[0] ? this.petals[0].startAngle : 0;
+	            var angleStep = 360 / numStamens;
+	            
+	            for (var i = 0; i < numStamens; i++) {
+	                var angle = Garden.degrad(startAngle + i * angleStep + 36);
+	                var cos = Math.cos(angle);
+	                var sin = Math.sin(angle);
+	                
+	                // Stamen filament (thin line from center)
+	                ctx.beginPath();
+	                ctx.moveTo(0, 0);
+	                ctx.lineTo(cos * stamenLen, sin * stamenLen);
+	                ctx.lineWidth = 0.8; // Thinner lines for small flowers
+	                ctx.strokeStyle = '#d4e157';
+	                ctx.stroke();
+	                
+	                // Anther (T-shaped pollen sac, only drawn if flower is large enough to avoid clutter)
+	                if (currentR >= 4.5) {
+	                    var antherX = cos * stamenLen;
+	                    var antherY = sin * stamenLen;
+	                    ctx.save();
+	                    ctx.translate(antherX, antherY);
+	                    ctx.rotate(angle + Math.PI / 2);
+	                    
+	                    ctx.beginPath();
+	                    if (ctx.ellipse && currentR >= 7) {
+	                        ctx.ellipse(0, 0, currentR * 0.09, currentR * 0.04, 0, 0, Math.PI * 2);
+	                    } else {
+	                        ctx.arc(0, 0, currentR * 0.06, 0, Math.PI * 2);
+	                    }
+	                    ctx.fillStyle = '#8d6e63';
+	                    ctx.fill();
+	                    ctx.restore();
+	                }
+	            }
+	            
+	            // Also draw a tiny pistil in the absolute center
+	            ctx.beginPath();
+	            ctx.arc(0, 0, currentR * 0.1, 0, Math.PI * 2);
+	            ctx.fillStyle = '#81c784';
+	            ctx.fill();
+	            
+	            ctx.restore();
+	        },
 	        init: function () {
 	            var angle = 360 / this.pc;
 	            var startAngle = Garden.randomInt(0, 90);
+	            // Increased Daisy stretch parameters (0.7 to 2.0) to make white petals longer and more prominent
+	            var stretchMin = this.type === 'lily' ? 1.2 : 0.7;
+	            var stretchMax = this.type === 'lily' ? 2.5 : 2.0;
 	            for (var i = 0; i < this.pc; i++) {
-	                this.petals.push(new Petal(Garden.random(Garden.options.petalStretch.min, Garden.options.petalStretch.max), Garden.random(Garden.options.petalStretch.min, Garden.options.petalStretch.max), startAngle + i * angle, angle, Garden.random(Garden.options.growFactor.min, Garden.options.growFactor.max), this));
+	                this.petals.push(new Petal(
+	                    Garden.random(stretchMin, stretchMax), 
+	                    Garden.random(stretchMin, stretchMax), 
+	                    startAngle + i * angle, 
+	                    angle, 
+	                    Garden.random(Garden.options.growFactor.min, Garden.options.growFactor.max), 
+	                    this
+	                ));
 	            }
 	        }
 	    }
@@ -129,10 +254,28 @@
 	            }
 	        },
 	        createRandomBloom: function (x, y) {
-	            this.createBloom(x, y, Garden.randomInt(Garden.options.bloomRadius.min, Garden.options.bloomRadius.max), Garden.randomrgba(Garden.options.color.rmin, Garden.options.color.rmax, Garden.options.color.gmin, Garden.options.color.gmax, Garden.options.color.bmin, Garden.options.color.bmax, Garden.options.color.opacity), Garden.randomInt(Garden.options.petalCount.min, Garden.options.petalCount.max));
+	            var type = Math.random() < 0.5 ? 'daisy' : 'lily';
+	            var r = Garden.randomInt(Garden.options.bloomRadius.min, Garden.options.bloomRadius.max);
+	            var c, pc;
+	            if (type === 'daisy') {
+	                // Daisies are soft warm white
+	                var whiteVal = Math.round(Garden.random(245, 255));
+	                var yellowVal = Math.round(Garden.random(245, 255));
+	                var blueVal = Math.round(Garden.random(225, 240));
+	                c = 'rgba(' + whiteVal + ',' + yellowVal + ',' + blueVal + ',' + Garden.options.color.opacity * 2.2 + ')';
+	                pc = Garden.randomInt(12, 16);
+	            } else {
+	                // Lilies are pink, magenta, or red-orange
+	                var redVal = Math.round(Garden.random(235, 255));
+	                var greenVal = Math.round(Garden.random(60, 110));
+	                var blueVal = Math.round(Garden.random(110, 160));
+	                c = 'rgba(' + redVal + ',' + greenVal + ',' + blueVal + ',' + Garden.options.color.opacity * 1.8 + ')';
+	                pc = 6;
+	            }
+	            this.createBloom(x, y, r, c, pc, type);
 	        },
-	        createBloom: function (x, y, r, c, pc) {
-	            new Bloom(new Vector(x, y), r, c, pc, this);
+	        createBloom: function (x, y, r, c, pc, type) {
+	            new Bloom(new Vector(x, y), r, c, pc, this, type);
 	        },
 	        clear: function () {
 	            this.blooms = [];
